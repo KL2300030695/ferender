@@ -6,7 +6,7 @@ import requests
 import json
 import os
 from datetime import datetime, timedelta, timezone
-from fastapi import FastAPI, HTTPException, Body, Depends, status
+from fastapi import FastAPI, HTTPException, Body, Depends, status, Request
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -91,7 +91,10 @@ class SessionData(BaseModel):
     emotion_log: List[str]
 
 # --- Auth Dependency ---
-async def get_current_user(token: str = Depends(lambda req: req.headers.get("Authorization", "").replace("Bearer ", ""))):
+def extract_token(request: Request):
+    return request.headers.get("Authorization", "").replace("Bearer ", "")
+
+async def get_current_user(token: str = Depends(extract_token)):
     credentials_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
     if not token:
         # Allow guest mode: returns None if no token

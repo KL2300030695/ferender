@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
 import { useAuth } from '../context/AuthContext';
+import Sidebar from '../components/Sidebar';
 
 const API_BASE_URL = 'http://localhost:8000';
 
@@ -276,4 +277,4 @@ const Dashboard = () => {
   );
 };
 
-export default App;
+export default Dashboard;

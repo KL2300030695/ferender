@@ -36,7 +36,11 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const response = await axios.post(`${API_BASE_URL}/auth/login`, { email, password });
-    setToken(response.data.access_token);
+    const receivedToken = response.data.access_token;
+    localStorage.setItem('wellness_token', receivedToken);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${receivedToken}`;
+    setToken(receivedToken);
+    await fetchUserProfile();
     return response.data;
   };
 
@@ -46,7 +50,11 @@ export const AuthProvider = ({ children }) => {
         email, 
         password 
     });
-    setToken(response.data.access_token);
+    const receivedToken = response.data.access_token;
+    localStorage.setItem('wellness_token', receivedToken);
+    axios.defaults.headers.common['Authorization'] = `Bearer ${receivedToken}`;
+    setToken(receivedToken);
+    await fetchUserProfile();
     return response.data;
   };
 
