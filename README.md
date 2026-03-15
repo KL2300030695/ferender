@@ -56,9 +56,12 @@ python main.py
 *The backend will be available at `http://localhost:8000`.*
 
 ### 4. Frontend Setup (React/Vite)
-Open a new terminal window.
+⚠️ **CRITICAL: You must execute these commands from inside the `frontend` directory.** If you see an error like `ENOENT: no such file or directory, open '...\package.json'`, it means you are in the wrong directory.
+
+Open a new terminal window at the root of the project.
 
 ```bash
+# Navigate into the frontend directory
 cd frontend
 
 # Install dependencies

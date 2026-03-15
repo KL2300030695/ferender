@@ -12,7 +12,10 @@ import {
   Sparkles,
   Heart,
   Activity,
-  ChevronRight
+  ChevronRight,
+  Volume2,
+  VolumeX,
+  MicOff
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ReactMarkdown from 'react-markdown';
@@ -31,6 +34,10 @@ const Dashboard = () => {
   const [currentEmotion, setCurrentEmotion] = useState('neutral');
   const [confidence, setConfidence] = useState(0);
 
+  // Voice State
+  const [isListening, setIsListening] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+
   // Dynamic Sidebar State
   const [emotionLog, setEmotionLog] = useState([]);
   const [resilienceScore, setResilienceScore] = useState(100);
@@ -46,6 +53,69 @@ const Dashboard = () => {
   };
 
   useEffect(scrollToBottom, [messages]);
+
+  // Web Speech API references
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognitionRef = useRef(null);
+
+  useEffect(() => {
+    if (SpeechRecognition && !recognitionRef.current) {
+        recognitionRef.current = new SpeechRecognition();
+        recognitionRef.current.continuous = false;
+        recognitionRef.current.interimResults = true;
+        recognitionRef.current.lang = 'en-US';
+
+        recognitionRef.current.onresult = (event) => {
+            const transcript = Array.from(event.results)
+                .map(result => result[0])
+                .map(result => result.transcript)
+                .join('');
+            setInputText(transcript);
+        };
+
+        recognitionRef.current.onerror = (event) => {
+            console.error("Speech recognition error", event.error);
+            setIsListening(false);
+        };
+
+        recognitionRef.current.onend = () => {
+            setIsListening(false);
+        };
+    }
+  }, []);
+
+  const toggleListening = () => {
+      if (!recognitionRef.current) {
+          alert("Your browser does not support Speech Recognition. Please try Chrome or Safari.");
+          return;
+      }
+      
+      if (isListening) {
+          recognitionRef.current.stop();
+          setIsListening(false);
+      } else {
+          try {
+            recognitionRef.current.start();
+            setIsListening(true);
+          } catch(e) {
+            console.error("Speech API Error:", e);
+          }
+      }
+  };
+
+  const speakText = (text) => {
+      if (!voiceEnabled || !window.speechSynthesis) return;
+      
+      window.speechSynthesis.cancel(); // Stop any ongoing speech
+      const plainText = text.replace(/[*_~`#]/g, ''); // Basic markdown stripping
+      
+      const utterance = new SpeechSynthesisUtterance(plainText);
+      const voices = window.speechSynthesis.getVoices();
+      const preferredVoice = voices.find(v => v.lang.startsWith('en') && (v.name.includes('Female') || v.name.includes('Google'))) || voices.find(v => v.lang.startsWith('en'));
+      if (preferredVoice) utterance.voice = preferredVoice;
+      
+      window.speechSynthesis.speak(utterance);
+  };
 
   // Real-time Emotion Detection
   const captureAndDetect = useCallback(async () => {
@@ -126,8 +196,11 @@ const Dashboard = () => {
   }, [messages.length, resilienceScore, empathyLevel, currentEmotion]);
 
   const handleSend = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!inputText.trim() || isStreaming) return;
+    
+    // Stop ongoing speech
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
 
     const userMessage = { role: 'user', content: inputText };
     setMessages(prev => [...prev, userMessage]);
@@ -166,11 +239,15 @@ const Dashboard = () => {
         const chunk = decoder.decode(value, { stream: true });
         accumulatedText += chunk;
 
-        setMessages(prev => {
+          setMessages(prev => {
           const newMessages = [...prev];
           newMessages[newMessages.length - 1].content = accumulatedText;
           return newMessages;
         });
+      }
+      
+      if (voiceEnabled) {
+          speakText(accumulatedText);
       }
     } catch (error) {
       console.error("Chat error:", error);
@@ -201,6 +278,16 @@ const Dashboard = () => {
         <header className="chat-header">
           <h2 className="font-display">Mindful Conversation</h2>
           <div style={{ display: 'flex', gap: 12 }}>
+            <button 
+                onClick={() => {
+                    if (window.speechSynthesis && voiceEnabled) window.speechSynthesis.cancel();
+                    setVoiceEnabled(!voiceEnabled);
+                }}
+                style={{ background: 'none', border: 'none', color: voiceEnabled ? 'var(--accent-primary)' : 'var(--text-muted)', cursor: 'pointer', padding: 4 }}
+                title={voiceEnabled ? "Mute AI Voice" : "Enable AI Voice"}
+            >
+                {voiceEnabled ? <Volume2 size={20} /> : <VolumeX size={20} />}
+            </button>
             <div className="emotion-badge" style={{ marginTop: 0 }}>
               <span className="emotion-label">
                 <Smile size={18} /> {currentEmotion}
@@ -235,7 +322,26 @@ const Dashboard = () => {
         </div>
 
         <div className="input-container">
-          <form onSubmit={handleSend} className="input-wrapper">
+          <form onSubmit={handleSend} className="input-wrapper" style={{ display: 'flex', alignItems: 'center' }}>
+            <button 
+                type="button" 
+                onClick={toggleListening}
+                style={{ 
+                    background: 'none', 
+                    border: 'none', 
+                    color: isListening ? '#ef4444' : 'var(--text-muted)', 
+                    cursor: 'pointer', 
+                    padding: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: '8px'
+                }}
+                title={isListening ? "Stop Listening" : "Start Voice Input"}
+                disabled={isStreaming}
+            >
+                {isListening ? <Mic className="pulse" size={20} /> : <MicOff size={20} />}
+            </button>
             <input
               type="text"
               className="chat-input"
